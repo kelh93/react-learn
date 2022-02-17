@@ -366,6 +366,11 @@ let spawnedWorkDuringRender: null | Array<Lane | Lanes> = null;
 // If two updates are scheduled within the same event, we should treat their
 // event times as simultaneous, even if the actual clock time has advanced
 // between the first and second call.
+/**
+ * 翻译：
+ * 如果在同一事件中安排了两次更新，我们应该处理它们的事件时间同步，即使实际时钟时间提前
+ * 在第一次和第二次通话之间。
+ */
 let currentEventTime: number = NoTimestamp;
 let currentEventWipLanes: Lanes = NoLanes;
 let currentEventPendingLanes: Lanes = NoLanes;
@@ -381,6 +386,7 @@ export function getWorkInProgressRoot(): FiberRoot | null {
   return workInProgressRoot;
 }
 
+// 获取当前时间
 export function requestEventTime() {
   if ((executionContext & (RenderContext | CommitContext)) !== NoContext) {
     // We're inside React, so it's fine to read the actual time.

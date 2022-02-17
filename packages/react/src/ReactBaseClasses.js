@@ -54,6 +54,21 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
+/**
+ * 翻译：
+ * 设置`state`子集的值。一般用来修改组件`state`。你需要使得`this.state`是不可变的。
+ * 
+ * 无法保证`this.state`会立即更新，所以调用`this.setState`之后或许还是会返回旧值。
+ * 
+ * 无法保证`setState`调用同步执行，或许会进行批量更新。可以设置可选的callback回调，当`setState`
+ * 真正调用完成的时候，回调会被执行，此时就可以拿到最新的值。
+ * 
+ * 
+ * 
+ * 
+ * @param {*} partialState 
+ * @param {*} callback 
+ */
 Component.prototype.setState = function(partialState, callback) {
   invariant(
     typeof partialState === 'object' ||
