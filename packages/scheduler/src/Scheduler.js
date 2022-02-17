@@ -374,6 +374,8 @@ function unstable_getFirstCallbackNode() {
   return peek(taskQueue);
 }
 
+// 取消任务 cancelCallback@kelh
+// task.callback = null
 function unstable_cancelCallback(task) {
   if (enableProfiling) {
     if (task.isQueued) {

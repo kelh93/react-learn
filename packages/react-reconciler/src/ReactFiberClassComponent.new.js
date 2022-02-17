@@ -190,7 +190,7 @@ export function applyDerivedStateFromProps(
     updateQueue.baseState = memoizedState;
   }
 }
-
+// class组件 enqueueSetState @kelh
 const classComponentUpdater = {
   isMounted,
   enqueueSetState(inst, payload, callback) {

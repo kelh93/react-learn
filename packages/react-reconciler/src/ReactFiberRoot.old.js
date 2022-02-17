@@ -26,11 +26,12 @@ import {unstable_getThreadID} from 'scheduler/tracing';
 import {initializeUpdateQueue} from './ReactUpdateQueue.old';
 import {LegacyRoot, BlockingRoot, ConcurrentRoot} from './ReactRootTags';
 
+// Fiber节点
 function FiberRootNode(containerInfo, tag, hydrate) {
   this.tag = tag;
   this.containerInfo = containerInfo;
   this.pendingChildren = null;
-  this.current = null;
+  this.current = null; // 当前节点
   this.pingCache = null;
   this.finishedWork = null;
   this.timeoutHandle = noTimeout;

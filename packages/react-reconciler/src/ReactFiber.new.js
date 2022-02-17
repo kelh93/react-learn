@@ -112,7 +112,7 @@ if (__DEV__) {
 }
 
 let debugCounter = 1;
-
+// FiberNode @kelh
 function FiberNode(
   tag: WorkTag,
   pendingProps: mixed,
@@ -120,37 +120,37 @@ function FiberNode(
   mode: TypeOfMode,
 ) {
   // Instance
-  this.tag = tag;
-  this.key = key;
-  this.elementType = null;
-  this.type = null;
-  this.stateNode = null;
+  this.tag = tag;  // 不同的组件类型
+  this.key = key; // react element 的 key
+  this.elementType = null; // react element 的 type
+  this.type = null; // 异步组件resolved之后返回的内容，一般是`function`或者`class`
+  this.stateNode = null; // 真实dom节点
 
   // Fiber
-  this.return = null;
-  this.child = null;
-  this.sibling = null;
+  this.return = null; // 指向父节点
+  this.child = null; // 指向子节点
+  this.sibling = null; // 兄弟节点
   this.index = 0;
 
   this.ref = null;
 
-  this.pendingProps = pendingProps;
-  this.memoizedProps = null;
-  this.updateQueue = null;
-  this.memoizedState = null;
-  this.dependencies = null;
+  this.pendingProps = pendingProps; // 新的props
+  this.memoizedProps = null; // 旧props
+  this.updateQueue = null; // 该Fiber对应的组件产生的Update会存放在这个队列里面
+  this.memoizedState = null; // 新旧 state
+  this.dependencies = null; // 依赖
 
-  this.mode = mode;
+  this.mode = mode; // Effects 表示这个子树是否默认是异步渲染的
 
   // Effects
-  this.flags = NoFlags;
+  this.flags = NoFlags; // diff标记
   this.subtreeFlags = NoFlags;
-  this.deletions = null;
+  this.deletions = null; // 是否需要删除
 
-  this.lanes = NoLanes;
-  this.childLanes = NoLanes;
+  this.lanes = NoLanes; // 优先级
+  this.childLanes = NoLanes; // 子节点优先级
 
-  this.alternate = null;
+  this.alternate = null; // 指向workInProgress
 
   if (enableProfilerTimer) {
     // Note: The following is done to avoid a v8 performance cliff.

@@ -530,15 +530,17 @@ function requestRetryLane(fiber: Fiber) {
   }
   return findRetryLane(currentEventWipLanes);
 }
-
+// scheduleUpdateOnFiber@kelh
 export function scheduleUpdateOnFiber(
   fiber: Fiber,
   lane: Lane,
   eventTime: number,
 ) {
+  // 检测是否有嵌套更新 > 50 次会报错。
   checkForNestedUpdates();
   warnAboutRenderPhaseUpdatesInDEV(fiber);
 
+  // 标记更新优先级
   const root = markUpdateLaneFromFiberToRoot(fiber, lane);
   if (root === null) {
     warnAboutUpdateOnUnmountedFiberInDEV(fiber);
@@ -546,6 +548,7 @@ export function scheduleUpdateOnFiber(
   }
 
   // Mark that the root has a pending update.
+  // 标记根节点有待处理的更新
   markRootUpdated(root, lane, eventTime);
 
   if (root === workInProgressRoot) {
@@ -576,8 +579,10 @@ export function scheduleUpdateOnFiber(
 
   // TODO: requestUpdateLanePriority also reads the priority. Pass the
   // priority as an argument to that function and this one.
+  // 获取当前优先级
   const priorityLevel = getCurrentPriorityLevel();
 
+  // 如果是同步更新
   if (lane === SyncLane) {
     if (
       // Check if we're inside unbatchedUpdates
@@ -623,6 +628,11 @@ export function scheduleUpdateOnFiber(
       }
     }
     // Schedule other updates after in case the callback is sync.
+    // 在回调同步的情况下安排其他更新
+    // 如果是本次更新是同步的，不过当前有React更新任务正在进行，
+    // 而且因为无法打断，所以调用ensureRootIsScheduled
+    // 目的是去复用已经在更新的任务，让这个已有的任务
+    // 把这次更新顺便做了
     ensureRootIsScheduled(root, eventTime);
     schedulePendingInteractions(root, lane);
   }
@@ -639,6 +649,7 @@ export function scheduleUpdateOnFiber(
 // work without treating it as a typical update that originates from an event;
 // e.g. retrying a Suspense boundary isn't an update, but it does schedule work
 // on a fiber.
+// 
 function markUpdateLaneFromFiberToRoot(
   sourceFiber: Fiber,
   lane: Lane,
@@ -688,6 +699,16 @@ function markUpdateLaneFromFiberToRoot(
 // of the existing task is the same as the priority of the next level that the
 // root has work on. This function is called on every update, and right before
 // exiting a task.
+/**
+ * 
+ * 使用此功能为根计划任务。 每个根只有一个任务； 如果已经安排了任务，
+ * 我们将检查以确保现有任务的优先级与根正在处理的下一个级别的优先级相同。
+ * 每次更新时都会调用此函数，并且就在退出任务之前。
+ * @param {*} root 
+ * @param {*} currentTime 
+ * @returns 
+ */
+// ensureRootIsScheduled@kelh
 function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   const existingCallbackNode = root.callbackNode;
 
@@ -705,6 +726,7 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
 
   if (nextLanes === NoLanes) {
     // Special case: There's nothing to work on.
+    // 如果渲染优先级为空，则不需要调度
     if (existingCallbackNode !== null) {
       cancelCallback(existingCallbackNode);
       root.callbackNode = null;
@@ -714,19 +736,24 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
   }
 
   // Check if there's an existing task. We may be able to reuse it.
+  // 
   if (existingCallbackNode !== null) {
     const existingCallbackPriority = root.callbackPriority;
     if (existingCallbackPriority === newCallbackPriority) {
       // The priority hasn't changed. We can reuse the existing task. Exit.
+      // 优先级未改变，可以复用之前的任务调度。
       return;
     }
     // The priority changed. Cancel the existing callback. We'll schedule a new
     // one below.
+    // 插队
+    // 优先级发生变化。取消已经存在的任务，调度一个新任务
     cancelCallback(existingCallbackNode);
   }
 
   // Schedule a new callback.
   let newCallbackNode;
+    // 同步优先级任务
   if (newCallbackPriority === SyncLanePriority) {
     // Special case: Sync React callbacks are scheduled on a special
     // internal queue
@@ -734,11 +761,13 @@ function ensureRootIsScheduled(root: FiberRoot, currentTime: number) {
       performSyncWorkOnRoot.bind(null, root),
     );
   } else if (newCallbackPriority === SyncBatchedLanePriority) {
+    // 同步批处理
     newCallbackNode = scheduleCallback(
       ImmediateSchedulerPriority,
       performSyncWorkOnRoot.bind(null, root),
     );
   } else {
+    // 并发模式
     const schedulerPriorityLevel = lanePriorityToSchedulerPriority(
       newCallbackPriority,
     );
@@ -979,6 +1008,7 @@ function markRootSuspended(root, suspendedLanes) {
 
 // This is the entry point for synchronous tasks that don't go
 // through Scheduler
+// performSyncWorkOnRoot@kelh
 function performSyncWorkOnRoot(root) {
   invariant(
     (executionContext & (RenderContext | CommitContext)) === NoContext,
@@ -1056,6 +1086,7 @@ function performSyncWorkOnRoot(root) {
 
   // Before exiting, make sure there's a callback scheduled for the next
   // pending level.
+  // 退出之前，保证调度下一个待处理的任务回调
   ensureRootIsScheduled(root, now());
 
   return null;
@@ -1504,6 +1535,7 @@ export function renderHasNotSuspendedYet(): boolean {
   return workInProgressRootExitStatus === RootIncomplete;
 }
 
+// renderRootSync@kelh
 function renderRootSync(root: FiberRoot, lanes: Lanes) {
   const prevExecutionContext = executionContext;
   executionContext |= RenderContext;
@@ -1572,6 +1604,7 @@ function renderRootSync(root: FiberRoot, lanes: Lanes) {
 
 // The work loop is an extremely hot path. Tell Closure not to inline it.
 /** @noinline */
+// workLoopSync@kelh
 function workLoopSync() {
   // Already timed out, so perform work without checking if we need to yield.
   while (workInProgress !== null) {
@@ -1579,6 +1612,7 @@ function workLoopSync() {
   }
 }
 
+// 并发 renderRootConcurrent@kelh
 function renderRootConcurrent(root: FiberRoot, lanes: Lanes) {
   const prevExecutionContext = executionContext;
   executionContext |= RenderContext;
@@ -1656,6 +1690,7 @@ function workLoopConcurrent() {
   }
 }
 
+// performUnitOfWork@kelh
 function performUnitOfWork(unitOfWork: Fiber): void {
   // The current, flushed, state of this fiber is the alternate. Ideally
   // nothing should rely on this, but relying on it here means that we don't
@@ -1684,6 +1719,7 @@ function performUnitOfWork(unitOfWork: Fiber): void {
   ReactCurrentOwner.current = null;
 }
 
+// completeUnitOfWork@kelh
 function completeUnitOfWork(unitOfWork: Fiber): void {
   // Attempt to complete the current unit of work, then move to the next
   // sibling. If there are no more siblings, return to the parent fiber.
@@ -1778,6 +1814,7 @@ function completeUnitOfWork(unitOfWork: Fiber): void {
   }
 }
 
+// commitRoot@kelh
 function commitRoot(root) {
   const renderPriorityLevel = getCurrentPriorityLevel();
   runWithPriority(
@@ -1787,6 +1824,7 @@ function commitRoot(root) {
   return null;
 }
 
+// commitRootImpl@kelh 生命周期
 function commitRootImpl(root, renderPriorityLevel) {
   do {
     // `flushPassiveEffects` will call `flushSyncUpdateQueue` at the end, which
@@ -1932,6 +1970,7 @@ function commitRootImpl(root, renderPriorityLevel) {
     // the mutation phase, so that the previous tree is still current during
     // componentWillUnmount, but before the layout phase, so that the finished
     // work is current during componentDidMount/Update.
+    // 此时调用生命周期函数 componentDidMount/Update
     root.current = finishedWork;
 
     // The next phase is the layout phase, where we call effects that read
@@ -2089,6 +2128,7 @@ function commitRootImpl(root, renderPriorityLevel) {
 
   // Always call this before exiting `commitRoot`, to ensure that any
   // additional work on this root is scheduled.
+  // 每次更新完成之后都会调用 ensureRootIsScheduled
   ensureRootIsScheduled(root, now());
 
   if (hasUncaughtError) {
@@ -2839,6 +2879,7 @@ function jnd(timeElapsed: number) {
     : ceil(timeElapsed / 1960) * 1960;
 }
 
+// 检测是否有死循环 > 50次报错
 function checkForNestedUpdates() {
   if (nestedUpdateCount > NESTED_UPDATE_LIMIT) {
     nestedUpdateCount = 0;
@@ -3348,7 +3389,7 @@ export function markSpawnedWork(lane: Lane | Lanes) {
     spawnedWorkDuringRender.push(lane);
   }
 }
-
+// scheduleInteractions@kelh
 function scheduleInteractions(
   root: FiberRoot,
   lane: Lane | Lanes,
